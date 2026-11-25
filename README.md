@@ -63,7 +63,7 @@ PRUEBA (nunca contra producción).
 ## Poner en marcha en IONOS
 
 1. **Base de datos:** crear una base nueva en el panel y cargar, en este orden,
-   `sql/01_esquema.sql`, `sql/02_catalogos.sql` y `sql/03_config_afiliaciones.sql` y `sql/04_carta_compromiso.sql`
+   `sql/01_esquema.sql`, `sql/02_catalogos.sql`, `sql/03_config_afiliaciones.sql` y `sql/04_carta_compromiso.sql`
    (phpMyAdmin → Importar).
 2. **Configuración:** copiar `config/config.example.php` como `config/config.php`
    y llenar los datos de la base y del correo. Ese archivo se sube por SFTP, nunca a GitHub.
