@@ -1,7 +1,8 @@
 # Respaldo por si el dominio NO se puede apuntar directo a la carpeta public/.
 # Manda todo a public/ y bloquea app/, config/, sql/, storage/, herramientas/ y tests/.
-Options -Indexes
+# (IONOS no permite "Options" en .htaccess: provoca error 500.)
 RewriteEngine On
+RewriteBase /
 RewriteRule ^(app|config|sql|storage|herramientas|tests)(/|$) - [F,L]
 RewriteRule (^|/)\. - [F]
 RewriteRule ^(?!public/)(.*)$ public/$1 [L]
