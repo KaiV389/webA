@@ -76,14 +76,15 @@ final class Afiliaciones
 
             Db::ejecutar(
                 "INSERT INTO afiliaciones (persona_id, anio, escuela_id, estatus, motivo_estatus, origen,
-                                           afiliacion_anterior_id, fecha_registro, datos_form)
-                 VALUES (?, ?, ?, 'pendiente', ?, 'form_afiliacion', ?, ?, ?)",
+                                           afiliacion_anterior_id, fecha_registro, datos_form, carta_compromiso_url)
+                 VALUES (?, ?, ?, 'pendiente', ?, 'form_afiliacion', ?, ?, ?, ?)",
                 [
                     $personaId, $anio, $escuelaId,
                     $veto ? 'ALERTA DE VETO: revisar antes de aprobar' : null,
                     $anterior['id'] ?? null,
                     $fechaRegistro,
                     json_encode($d['respuesta_form'] ?? null, JSON_UNESCAPED_UNICODE),
+                    $this->urlCarta($d),
                 ]
             );
             $id = (int) $pdo->lastInsertId();
@@ -95,6 +96,7 @@ final class Afiliaciones
                 'persona_id'         => $personaId,
                 'alerta_veto'        => $veto,
                 'afiliado_anterior'  => (bool) $anterior,   // ya estuvo afiliado otro año
+                'falta_carta'        => $this->urlCarta($d) === null,
             ];
         });
     }
@@ -130,6 +132,13 @@ final class Afiliaciones
         }
         if ($this->vetoActivo((int) $a['persona_id'], null)) {
             throw new ErrorNegocio('La persona tiene un veto activo; la aprobación debe hacerse a mano', 409);
+        }
+        $requiereCarta = $a['origen'] === 'form_renovacion'
+            ? Ajustes::get('renovacion.requiere_carta', false)
+            : Ajustes::get('afiliacion.requiere_carta', true);
+        if ($requiereCarta && empty($a['carta_compromiso_url'])) {
+            throw new ErrorNegocio('Falta la carta de declaración de responsabilidad y compromiso firmada', 409,
+                ['resultado' => 'falta_carta']);
         }
 
         $anio = (int) $a['anio'];
@@ -226,16 +235,19 @@ final class Afiliaciones
             );
 
             $veto = $this->vetoActivo($personaId, null);
+            $carta = $this->urlCarta($d);
+            $faltaCarta = $carta === null && Ajustes::get('renovacion.requiere_carta', false);
             $alerta = $veto ? 'ALERTA DE VETO: revisar antes de aprobar'
-                    : (!$coincideNombre ? 'El nombre capturado no coincide con el del folio: revisar' : null);
+                    : (!$coincideNombre ? 'El nombre capturado no coincide con el del folio: revisar'
+                    : ($faltaCarta ? 'Falta la carta de compromiso firmada' : null));
 
             Db::ejecutar(
                 "INSERT INTO afiliaciones (persona_id, anio, escuela_id, estatus, motivo_estatus, origen,
-                                           afiliacion_anterior_id, fecha_registro, datos_form)
-                 VALUES (?, ?, ?, 'pendiente', ?, 'form_renovacion', ?, ?, ?)",
+                                           afiliacion_anterior_id, fecha_registro, datos_form, carta_compromiso_url)
+                 VALUES (?, ?, ?, 'pendiente', ?, 'form_renovacion', ?, ?, ?, ?)",
                 [$personaId, $anio, $anterior['escuela_id'], $alerta, $anterior['id'],
                  $this->fecha($d['marca_temporal'] ?? null),
-                 json_encode($d['respuesta_form'] ?? null, JSON_UNESCAPED_UNICODE)]
+                 json_encode($d['respuesta_form'] ?? null, JSON_UNESCAPED_UNICODE), $carta]
             );
             $id = (int) $pdo->lastInsertId();
             Bitacora::registrar('renovar', 'afiliacion', $id, null, ['anterior' => (int) $anterior['id'], 'alerta' => $alerta]);
@@ -243,10 +255,32 @@ final class Afiliaciones
             // Sin alertas, la renovación se aprueba en el acto
             if ($alerta) {
                 return ['resultado' => 'en_revision', 'afiliacion_id' => $id, 'alerta_veto' => $veto,
-                        'nombre_no_coincide' => !$coincideNombre];
+                        'nombre_no_coincide' => !$coincideNombre, 'falta_carta' => $faltaCarta];
             }
             return ['resultado' => 'renovada'] + $this->aprobarEnTransaccion($pdo, $id, null, null);
         });
+    }
+
+    /** Agrega o reemplaza la carta de compromiso de una solicitud pendiente. */
+    public function adjuntarCarta(int $afiliacionId, array $d): array
+    {
+        $url = $this->urlCarta($d);
+        if ($url === null) {
+            throw new ErrorNegocio('carta_compromiso_url debe ser una liga https', 422);
+        }
+        $a = Db::uno('SELECT estatus, motivo_estatus FROM afiliaciones WHERE id = ?', [$afiliacionId]);
+        if (!$a) {
+            throw new ErrorNegocio('No existe esa solicitud de afiliación', 404);
+        }
+        Db::ejecutar(
+            "UPDATE afiliaciones
+                SET carta_compromiso_url = ?,
+                    motivo_estatus = IF(motivo_estatus = 'Falta la carta de compromiso firmada', NULL, motivo_estatus)
+              WHERE id = ?",
+            [$url, $afiliacionId]
+        );
+        Bitacora::registrar('adjuntar_carta', 'afiliacion', $afiliacionId, null, ['carta' => $url]);
+        return ['resultado' => 'carta_guardada', 'afiliacion_id' => $afiliacionId, 'estatus' => $a['estatus']];
     }
 
     // ------------------------------------------------------------------
@@ -258,6 +292,7 @@ final class Afiliaciones
     {
         return Db::todos(
             "SELECT a.id AS afiliacion_id, a.anio, a.origen, a.fecha_registro, a.motivo_estatus AS alerta,
+                    a.carta_compromiso_url,
                     p.nombre_completo, p.foto_url, e.nombre AS escuela, es.nombre AS estado,
                     ant.folio AS folio_anterior
                FROM afiliaciones a
@@ -422,6 +457,13 @@ final class Afiliaciones
      * de Google Sheets en México, día/mes/año ("03/01/2027 10:15:00"), que
      * strtotime leería al revés como mes/día.
      */
+    /** Liga https de la carta firmada, o null si no viene o no es válida. */
+    private function urlCarta(array $d): ?string
+    {
+        $url = trim((string) ($d['carta_compromiso_url'] ?? ''));
+        return preg_match('#^https://\S+$#', $url) ? $url : null;
+    }
+
     private function fecha(?string $marca): string
     {
         $marca = trim((string) $marca);

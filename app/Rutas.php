@@ -23,5 +23,6 @@ $r->get('/api/salud', [SaludController::class, 'revisar']);
 $r->post('/api/afiliaciones',               [AfiliacionesController::class, 'registrar']);
 $r->get('/api/afiliaciones/pendientes',     [AfiliacionesController::class, 'pendientes']);
 $r->post('/api/afiliaciones/{id}/aprobar',  [AfiliacionesController::class, 'aprobar']);
+$r->post('/api/afiliaciones/{id}/carta',    [AfiliacionesController::class, 'adjuntarCarta']);
 $r->post('/api/renovaciones',               [AfiliacionesController::class, 'renovar']);
 $r->post('/api/documentos/{token}/pdf',     [AfiliacionesController::class, 'guardarPdf']);
