@@ -1,0 +1,14 @@
+# Todo lo que no sea un archivo real (css, imágenes) pasa por index.php
+Options -Indexes
+RewriteEngine On
+
+# Forzar https
+RewriteCond %{HTTPS} !=on
+RewriteCond %{HTTP:X-Forwarded-Proto} !=https
+RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
+
+# Nunca servir archivos ocultos (.env, .git, etc.)
+RewriteRule (^|/)\. - [F]
+
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteRule ^ index.php [L,QSA]

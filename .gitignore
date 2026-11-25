@@ -1,0 +1,12 @@
+# Credenciales: nunca a GitHub
+config/config.php
+
+# Logs y archivos generados
+storage/logs/*
+!storage/logs/.gitkeep
+herramientas/responsivas/salida/
+__pycache__/
+
+# Sistema
+.DS_Store
+Thumbs.db

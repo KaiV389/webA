@@ -1,0 +1,28 @@
+/* Base visual provisional (verde y oro de AMBA). El diseño completo viene después. */
+:root {
+  --verde: #2D8A3E; --verde-oscuro: #1E6B2D; --oro: #D4AC0D;
+  --fondo: #0D0D0D; --tarjeta: #161616; --borde: rgba(255,255,255,.09);
+  --texto: #E8E8E2; --tenue: #9A9A92; --malo: #C0392B;
+}
+*, *::before, *::after { box-sizing: border-box; }
+body { margin: 0; font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+       background: var(--fondo); color: var(--texto); line-height: 1.5; }
+a { color: var(--oro); }
+.barra { padding: 14px 16px; border-bottom: 1px solid var(--borde); }
+.marca { color: var(--texto); text-decoration: none; font-weight: 700; letter-spacing: .04em; }
+.marca span { color: var(--oro); }
+.contenido { max-width: 640px; margin: 0 auto; padding: 24px 16px 48px; }
+.tarjeta { background: var(--tarjeta); border: 1px solid var(--borde); border-radius: 12px; padding: 24px 20px; }
+.tarjeta h1 { font-size: 1.3rem; margin: .4rem 0 1rem; }
+.sello { display: inline-block; margin: 0; padding: 6px 12px; border-radius: 6px; font-weight: 700; letter-spacing: .06em; font-size: .85rem; }
+.sello-bueno { background: rgba(45,138,62,.18); color: #6FD27F; border: 1px solid var(--verde); }
+.sello-malo  { background: rgba(192,57,43,.15); color: #F08070; border: 1px solid var(--malo); }
+.datos { display: grid; grid-template-columns: max-content 1fr; gap: 6px 16px; margin: 0 0 1rem; }
+.datos dt { color: var(--tenue); }
+.datos dd { margin: 0; overflow-wrap: anywhere; }
+.estado { padding: 10px 12px; border-radius: 8px; font-weight: 600; }
+.estado-activo   { background: rgba(45,138,62,.12); color: #6FD27F; }
+.estado-inactivo { background: rgba(192,57,43,.12); color: #F08070; }
+.leyenda { color: var(--tenue); font-size: .9rem; margin-bottom: 0; }
+.pie { text-align: center; color: var(--tenue); font-size: .85rem; padding: 24px 16px; }
+@media (max-width: 420px) { .datos { grid-template-columns: 1fr; gap: 0 0; } .datos dd { margin-bottom: 8px; } }

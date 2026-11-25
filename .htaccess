@@ -1,0 +1,7 @@
+# Respaldo por si el dominio NO se puede apuntar directo a la carpeta public/.
+# Manda todo a public/ y bloquea app/, config/, sql/, storage/ y herramientas/.
+Options -Indexes
+RewriteEngine On
+RewriteRule ^(app|config|sql|storage|herramientas)(/|$) - [F,L]
+RewriteRule (^|/)\. - [F]
+RewriteRule ^(?!public/)(.*)$ public/$1 [L]
