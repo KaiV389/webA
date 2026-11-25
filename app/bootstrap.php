@@ -37,6 +37,12 @@ ini_set('log_errors', '1');
 ini_set('error_log', RAIZ . '/storage/logs/php-' . date('Y-m') . '.log');
 
 set_exception_handler(function (Throwable $e) use ($enDesarrollo): void {
+    if ($e instanceof App\Core\ErrorNegocio) {
+        if (App\Core\Http::esApi()) {
+            App\Core\Http::json(['ok' => false, 'error' => $e->getMessage()] + $e->datos, $e->http);
+        }
+        App\Core\Http::error($e->http, $e->getMessage());
+    }
     error_log((string) $e);
     App\Core\Http::error(500, $enDesarrollo ? $e->getMessage() : 'Ocurrió un error. Intenta de nuevo en un momento.');
 });
