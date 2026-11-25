@@ -19,6 +19,37 @@ final class Http
         return $ruta;
     }
 
+    /**
+     * Cuerpo JSON de la solicitud como arreglo. Si no es JSON válido
+     * responde 400 de inmediato.
+     */
+    public static function cuerpoJson(): array
+    {
+        $crudo = file_get_contents('php://input') ?: '';
+        if (strlen($crudo) > 1_000_000) {
+            self::error(413, 'La solicitud es demasiado grande');
+        }
+        $datos = json_decode($crudo, true);
+        if (!is_array($datos)) {
+            self::error(400, 'El cuerpo debe ser JSON válido');
+        }
+        return $datos;
+    }
+
+    /** Lee un encabezado HTTP sin importar mayúsculas. */
+    public static function encabezado(string $nombre): ?string
+    {
+        $clave = 'HTTP_' . strtoupper(str_replace('-', '_', $nombre));
+        if (isset($_SERVER[$clave])) {
+            return $_SERVER[$clave];
+        }
+        // Algunos hostings con PHP como CGI dejan Authorization aquí
+        if (strcasecmp($nombre, 'Authorization') === 0) {
+            return $_SERVER['REDIRECT_HTTP_AUTHORIZATION'] ?? null;
+        }
+        return null;
+    }
+
     public static function json(mixed $datos, int $codigo = 200): never
     {
         http_response_code($codigo);

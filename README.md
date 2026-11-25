@@ -28,10 +28,36 @@ herramientas/    Scripts auxiliares (generador de responsivas)
 | `/verificar/{codigo}` | Verificación por QR de credenciales, constancias, avales y nombramientos. **Dirección permanente: no se cambia nunca.** |
 | `/api/salud` | Estado del sitio y de la base de datos, para el monitor de disponibilidad |
 
+## API de afiliaciones
+
+La usan los Apps Script de los Forms. Cada cliente se autentica con
+`Authorization: Bearer <token>`; los tokens se crean con
+`php herramientas/crear_cliente_api.php "Nombre" permiso1 permiso2…`
+y se guardan en las Propiedades del script, nunca en el código.
+
+| Método y ruta | Permiso | Qué hace |
+|---|---|---|
+| `POST /api/afiliaciones` | `afiliaciones.registrar` | Registra la solicitud del Form de afiliación; queda pendiente (con alerta si hay veto). Un doble envío devuelve el registro existente. |
+| `GET /api/afiliaciones/pendientes` | `afiliaciones.aprobar` | Bandeja de solicitudes por aprobar |
+| `POST /api/afiliaciones/{id}/aprobar` | `afiliaciones.aprobar` | Asigna el folio del año, tipo, grado y vigencia, y crea los 3 documentos (AFL, CON, CRE) con su liga de verificación para el QR. Repetirlo devuelve lo mismo. |
+| `POST /api/renovaciones` | `afiliaciones.renovar` | Renueva con el folio del año anterior, tolerando errores de captura (`AF1049`, `AFL49`, folio de la credencial o constancia). Sin alertas se aprueba en el acto con folio nuevo. |
+| `POST /api/documentos/{token}/pdf` | `documentos.registrar` | Guarda la liga del PDF ya generado |
+
+Los folios los asigna la base dentro de una transacción: dos solicitudes
+simultáneas nunca reciben el mismo número ni se salta ninguno.
+
+**Configuración** (tabla `configuracion`): `afiliacion.anio_actual` (cambiarlo a
+2027 al abrir la campaña), `afiliacion.tipos` y `afiliacion.vigencias`. Los 5
+cursos de cada año van en `requisitos_anuales`.
+
+**Pruebas:** `tests/prueba_api.sh` recorre todos los casos contra una base de
+PRUEBA (nunca contra producción).
+
 ## Poner en marcha en IONOS
 
 1. **Base de datos:** crear una base nueva en el panel y cargar, en este orden,
-   `sql/01_esquema.sql` y `sql/02_catalogos.sql` (phpMyAdmin → Importar).
+   `sql/01_esquema.sql`, `sql/02_catalogos.sql` y `sql/03_config_afiliaciones.sql`
+   (phpMyAdmin → Importar).
 2. **Configuración:** copiar `config/config.example.php` como `config/config.php`
    y llenar los datos de la base y del correo. Ese archivo se sube por SFTP, nunca a GitHub.
 3. **Archivos:** subir todo el proyecto por SFTP (WinSCP).
