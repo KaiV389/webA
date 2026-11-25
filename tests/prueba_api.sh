@@ -16,7 +16,7 @@ verifica() { # descripcion respuesta codigo_esperado texto_esperado
 }
 json() { sed '$d' <<<"$1" | python3 -c "import sys,json; d=json.load(sys.stdin); print($2)"; }
 
-ALTA='{"marca_temporal":"03/01/2027 10:15:00","nombre_completo":"  juan  PÉREZ prueba ","curp":"PEPJ800101HMCRRN09","correo":"Juan@Ejemplo.mx","telefono":"55 1234 5678","escuela":{"nombre":"Box Teoloyucan","municipio":"Teoloyucan","estado":"Edo. Mex"},"respuesta_form":{"fila":2}}'
+ALTA='{"marca_temporal":"03/01/2027 10:15:00","nombre_completo":"  juan  PÉREZ prueba ","curp":"PEPJ800101HMCRRN09","correo":"Juan@Ejemplo.mx","telefono":"55 1234 5678","escuela":{"nombre":"Box Teoloyucan","municipio":"Teoloyucan","estado":"Edo. Mex"},"respuesta_form":{"fila":2},"carta_compromiso_url":"https://drive.google.com/carta"}'
 
 verifica "Sin token → 401"                 "$(api POST /api/afiliaciones "$ALTA" "")" 401 "token"
 [ -n "$TOKEN_LIMITADO" ] && verifica "Token sin permiso → 403" "$(api GET /api/afiliaciones/pendientes "" "$TOKEN_LIMITADO")" 403 "permiso"
@@ -36,10 +36,15 @@ verifica "Guardar liga del PDF"            "$(api POST /api/documentos/$TOK/pdf 
 verifica "Liga no https → 422"             "$(api POST /api/documentos/$TOK/pdf '{"pdf_url":"http://x"}')" 422 "https"
 
 # Renovaciones (la base de prueba trae afiliados 2026 sembrados por el script de pruebas)
-verifica "Renovar con 'AFL49' (sin cero, serie equivocada)" "$(api POST /api/renovaciones '{"folio_anterior":"afl49 ","nombre_completo":"Ana López Master"}')" 200 '"resultado":"renovada"'
-R=$(api POST /api/renovaciones '{"folio_anterior":"AMBA-26NAL-AF1049","nombre_completo":"Ana Lopez Master"}')
+verifica "Renovar con 'AFL49' (sin cero, serie equivocada)" "$(api POST /api/renovaciones '{"folio_anterior":"afl49 ","nombre_completo":"Ana López Master","carta_compromiso_url":"https://drive.google.com/carta"}')" 200 '"resultado":"renovada"'
+R=$(api POST /api/renovaciones '{"folio_anterior":"AMBA-26NAL-AF1049","nombre_completo":"Ana Lopez Master","carta_compromiso_url":"https://drive.google.com/carta"}')
 verifica "Renovar otra vez con 'AF1049' → ya_renovado" "$R" 200 '"resultado":"ya_renovado"'
 verifica "  con 5 cursos → tipo A, vigencia diciembre" "$R" 200 '"vigencia":"2027-12-31"'
+verifica "Renovar sin carta → en revisión"  "$(api POST /api/renovaciones '{"folio_anterior":"AMBA-26NAL-AFI052","nombre_completo":"Sin Carta Prueba"}')" 200 '"falta_carta":true'
+SC=$(json "$(api GET /api/afiliaciones/pendientes)" "[p['afiliacion_id'] for p in d['pendientes'] if (p['alerta'] or '').startswith('Falta la carta')][0]")
+verifica "Aprobar sin carta → 409"         "$(api POST /api/afiliaciones/$SC/aprobar '{}')" 409 "falta_carta"
+verifica "Adjuntar carta después"          "$(api POST /api/afiliaciones/$SC/carta '{"carta_compromiso_url":"https://drive.google.com/c2"}')" 200 '"carta_guardada"'
+verifica "Ya con carta → se aprueba"       "$(api POST /api/afiliaciones/$SC/aprobar '{}')" 200 '"resultado":"aprobada"'
 verifica "Folio irreconocible → 404"       "$(api POST /api/renovaciones '{"folio_anterior":"hola"}')" 404 "folio_no_reconocido"
 verifica "Folio inexistente → 404"         "$(api POST /api/renovaciones '{"folio_anterior":"26NALAFI999"}')" 404 "folio_no_encontrado"
 verifica "Nombre que no coincide → en revisión" "$(api POST /api/renovaciones '{"folio_anterior":"AMBA-26NAL-AFI050","nombre_completo":"Pedro Gómez Ruiz"}')" 200 '"resultado":"en_revision"'

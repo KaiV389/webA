@@ -40,8 +40,15 @@ y se guardan en las Propiedades del script, nunca en el código.
 | `POST /api/afiliaciones` | `afiliaciones.registrar` | Registra la solicitud del Form de afiliación; queda pendiente (con alerta si hay veto). Un doble envío devuelve el registro existente. |
 | `GET /api/afiliaciones/pendientes` | `afiliaciones.aprobar` | Bandeja de solicitudes por aprobar |
 | `POST /api/afiliaciones/{id}/aprobar` | `afiliaciones.aprobar` | Asigna el folio del año, tipo, grado y vigencia, y crea los 3 documentos (AFL, CON, CRE) con su liga de verificación para el QR. Repetirlo devuelve lo mismo. |
+| `POST /api/afiliaciones/{id}/carta` | `afiliaciones.aprobar` | Agrega la carta de compromiso a una solicitud que llegó sin ella |
 | `POST /api/renovaciones` | `afiliaciones.renovar` | Renueva con el folio del año anterior, tolerando errores de captura (`AF1049`, `AFL49`, folio de la credencial o constancia). Sin alertas se aprueba en el acto con folio nuevo. |
 | `POST /api/documentos/{token}/pdf` | `documentos.registrar` | Guarda la liga del PDF ya generado |
+
+**Carta de compromiso:** el Form manda `carta_compromiso_url` con la liga de la carta firmada.
+Sin ella una afiliación nueva no se aprueba y una renovación queda en revisión
+(`afiliacion.requiere_carta` y `renovacion.requiere_carta` en la configuración).
+La carta en blanco se descarga de `/docs/carta-compromiso.pdf` y se genera con
+`herramientas/carta_compromiso/generar_carta.py`.
 
 Los folios los asigna la base dentro de una transacción: dos solicitudes
 simultáneas nunca reciben el mismo número ni se salta ninguno.
@@ -56,7 +63,7 @@ PRUEBA (nunca contra producción).
 ## Poner en marcha en IONOS
 
 1. **Base de datos:** crear una base nueva en el panel y cargar, en este orden,
-   `sql/01_esquema.sql`, `sql/02_catalogos.sql` y `sql/03_config_afiliaciones.sql`
+   `sql/01_esquema.sql`, `sql/02_catalogos.sql` y `sql/03_config_afiliaciones.sql` y `sql/04_carta_compromiso.sql`
    (phpMyAdmin → Importar).
 2. **Configuración:** copiar `config/config.example.php` como `config/config.php`
    y llenar los datos de la base y del correo. Ese archivo se sube por SFTP, nunca a GitHub.

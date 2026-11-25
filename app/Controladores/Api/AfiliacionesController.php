@@ -16,6 +16,7 @@ use App\Servicios\Afiliaciones;
  *   POST /api/afiliaciones                    registrar solicitud (Form de afiliación)
  *   GET  /api/afiliaciones/pendientes         bandeja de solicitudes por aprobar
  *   POST /api/afiliaciones/{id}/aprobar       aprobar: folio, tipo, vigencia, documentos
+ *   POST /api/afiliaciones/{id}/carta         agregar la carta de compromiso a una solicitud
  *   POST /api/renovaciones                    renovar con el folio del año anterior
  *   POST /api/documentos/{token}/pdf          guardar la liga del PDF ya generado
  */
@@ -47,6 +48,15 @@ final class AfiliacionesController
         }
         $por = isset($d['aprobada_por_persona_id']) ? (int) $d['aprobada_por_persona_id'] : null;
         Http::json(['ok' => true] + (new Afiliaciones())->aprobar((int) $id, $cursos, $por));
+    }
+
+    public function adjuntarCarta(string $id): never
+    {
+        ApiAuth::requerir('afiliaciones.aprobar');
+        if (!ctype_digit($id)) {
+            throw new ErrorNegocio('Id no válido', 400);
+        }
+        Http::json(['ok' => true] + (new Afiliaciones())->adjuntarCarta((int) $id, Http::cuerpoJson()));
     }
 
     public function renovar(): never
