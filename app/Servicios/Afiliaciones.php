@@ -134,7 +134,7 @@ final class Afiliaciones
             throw new ErrorNegocio('La persona tiene un veto activo; la aprobación debe hacerse a mano', 409);
         }
         $requiereCarta = $a['origen'] === 'form_renovacion'
-            ? Ajustes::get('renovacion.requiere_carta', false)
+            ? Ajustes::get('renovacion.requiere_carta', true)
             : Ajustes::get('afiliacion.requiere_carta', true);
         if ($requiereCarta && empty($a['carta_compromiso_url'])) {
             throw new ErrorNegocio('Falta la carta de declaración de responsabilidad y compromiso firmada', 409,
@@ -236,7 +236,7 @@ final class Afiliaciones
 
             $veto = $this->vetoActivo($personaId, null);
             $carta = $this->urlCarta($d);
-            $faltaCarta = $carta === null && Ajustes::get('renovacion.requiere_carta', false);
+            $faltaCarta = $carta === null && Ajustes::get('renovacion.requiere_carta', true);
             $alerta = $veto ? 'ALERTA DE VETO: revisar antes de aprobar'
                     : (!$coincideNombre ? 'El nombre capturado no coincide con el del folio: revisar'
                     : ($faltaCarta ? 'Falta la carta de compromiso firmada' : null));
