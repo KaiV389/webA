@@ -1,11 +1,12 @@
 # Todo lo que no sea un archivo real (css, imágenes) pasa por index.php
-Options -Indexes
+#
+# Probado en IONOS (nov 2026). Ojo:
+#  - IONOS no permite "Options" en .htaccess: provoca error 500.
+#  - RewriteBase / es necesario en IONOS.
+#  - La redirección a https se activa en el panel de IONOS (SSL → forzar https),
+#    no aquí.
 RewriteEngine On
-
-# Forzar https
-RewriteCond %{HTTPS} !=on
-RewriteCond %{HTTP:X-Forwarded-Proto} !=https
-RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
+RewriteBase /
 
 # Nunca servir archivos ocultos (.env, .git, etc.)
 RewriteRule (^|/)\. - [F]

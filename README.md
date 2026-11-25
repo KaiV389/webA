@@ -66,7 +66,10 @@ PRUEBA (nunca contra producción).
    `.htaccess` de la raíz redirige todo a `public/` y bloquea las demás carpetas.
 5. **Probar:** abrir `/api/salud`; debe responder `"ok": true`.
 
-Requiere PHP 8.1 o superior y MySQL 8.
+Requiere PHP 8.1 o superior y MySQL 8 o MariaDB 10.6+ (producción: PHP 8.5 y MariaDB 11.8 en IONOS).
+
+**Error 500 de Apache al subir:** casi siempre es el `.htaccess`. IONOS no acepta
+`Options` y necesita `RewriteBase /`. La redirección a https se activa en el panel.
 
 ## Probar en tu computadora
 
