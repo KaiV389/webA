@@ -40,7 +40,11 @@ verifica "Renovar con 'AFL49' (sin cero, serie equivocada)" "$(api POST /api/ren
 R=$(api POST /api/renovaciones '{"folio_anterior":"AMBA-26NAL-AF1049","nombre_completo":"Ana Lopez Master","carta_compromiso_url":"https://drive.google.com/carta"}')
 verifica "Renovar otra vez con 'AF1049' → ya_renovado" "$R" 200 '"resultado":"ya_renovado"'
 verifica "  con 5 cursos → tipo A, vigencia diciembre" "$R" 200 '"vigencia":"2027-12-31"'
-verifica "Renovar sin carta → se renueva (no la piden)" "$(api POST /api/renovaciones '{"folio_anterior":"AMBA-26NAL-AFI052","nombre_completo":"Sin Carta Prueba"}')" 200 '"resultado":"renovada"'
+R=$(api POST /api/renovaciones '{"folio_anterior":"AMBA-26NAL-AFI052","nombre_completo":"Sin Carta Prueba"}')
+verifica "Renovación anual sin carta → en revisión" "$R" 200 '"falta_carta":true'
+RC=$(json "$R" "d['afiliacion_id']")
+verifica "  se le agrega la carta"          "$(api POST /api/afiliaciones/$RC/carta '{"carta_compromiso_url":"https://drive.google.com/c3"}')" 200 '"carta_guardada"'
+verifica "  y ya se aprueba con folio 2027" "$(api POST /api/afiliaciones/$RC/aprobar '{}')" 200 '"folio":"AMBA-27NAL-AFI'
 R=$(api POST /api/afiliaciones '{"nombre_completo":"Nueva Sin Carta","curp":"NUSC800101HMCVNR04","correo":"n@x.mx","escuela":{"nombre":"Esc Nueva","estado":"MEXICO"}}')
 verifica "Afiliación nueva sin carta → avisa" "$R" 201 '"falta_carta":true'
 SC=$(json "$R" "d['afiliacion_id']")

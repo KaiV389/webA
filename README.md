@@ -45,8 +45,9 @@ y se guardan en las Propiedades del script, nunca en el código.
 | `POST /api/documentos/{token}/pdf` | `documentos.registrar` | Guarda la liga del PDF ya generado |
 
 **Carta de compromiso:** el Form manda `carta_compromiso_url` con la liga de la carta firmada.
-Sin ella una afiliación nueva no se aprueba (`afiliacion.requiere_carta`). Las
-renovaciones no la piden (`renovacion.requiere_carta` = false).
+Sin ella una afiliación nueva no se aprueba y una renovación anual queda en
+revisión (`afiliacion.requiere_carta` y `renovacion.requiere_carta`). La
+renovación de medio año (extender vigencia dentro del mismo año) no la pide.
 La carta en blanco se descarga de `/docs/carta-compromiso.pdf` y se genera con
 `herramientas/carta_compromiso/generar_carta.py`.
 
@@ -63,7 +64,8 @@ PRUEBA (nunca contra producción).
 ## Poner en marcha en IONOS
 
 1. **Base de datos:** crear una base nueva en el panel y cargar, en este orden,
-   `sql/01_esquema.sql`, `sql/02_catalogos.sql`, `sql/03_config_afiliaciones.sql` y `sql/04_carta_compromiso.sql`
+   `sql/01_esquema.sql`, `sql/02_catalogos.sql`, `sql/03_config_afiliaciones.sql` `sql/04_carta_compromiso.sql` y
+   `sql/05_renovacion_anual_con_carta.sql`
    (phpMyAdmin → Importar).
 2. **Configuración:** copiar `config/config.example.php` como `config/config.php`
    y llenar los datos de la base y del correo. Ese archivo se sube por SFTP, nunca a GitHub.
