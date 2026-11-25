@@ -10,9 +10,10 @@ SET NAMES utf8mb4;
 ALTER TABLE afiliaciones
   ADD COLUMN IF NOT EXISTS carta_compromiso_url VARCHAR(500) NULL AFTER datos_form;
 
--- Candados: sin carta no se aprueba la afiliación; en renovaciones,
--- sin carta queda "en revisión" en lugar de aprobarse en el acto.
+-- Candado: sin carta no se aprueba una afiliación nueva.
+-- Las renovaciones NO la piden (decisión de nov 2026); si algún año se
+-- quisiera pedir, cambiar renovacion.requiere_carta a true.
 INSERT INTO configuracion (clave, valor, descripcion, solo_sistemas) VALUES
  ('afiliacion.requiere_carta', 'true', 'Sin carta de compromiso no se aprueba una afiliación nueva', 1),
- ('renovacion.requiere_carta', 'true', 'Sin carta de compromiso la renovación queda en revisión', 1)
+ ('renovacion.requiere_carta', 'false', 'Si es true, sin carta de compromiso la renovación queda en revisión', 1)
 ON DUPLICATE KEY UPDATE clave = clave;

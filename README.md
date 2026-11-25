@@ -45,8 +45,8 @@ y se guardan en las Propiedades del script, nunca en el código.
 | `POST /api/documentos/{token}/pdf` | `documentos.registrar` | Guarda la liga del PDF ya generado |
 
 **Carta de compromiso:** el Form manda `carta_compromiso_url` con la liga de la carta firmada.
-Sin ella una afiliación nueva no se aprueba y una renovación queda en revisión
-(`afiliacion.requiere_carta` y `renovacion.requiere_carta` en la configuración).
+Sin ella una afiliación nueva no se aprueba (`afiliacion.requiere_carta`). Las
+renovaciones no la piden (`renovacion.requiere_carta` = false).
 La carta en blanco se descarga de `/docs/carta-compromiso.pdf` y se genera con
 `herramientas/carta_compromiso/generar_carta.py`.
 

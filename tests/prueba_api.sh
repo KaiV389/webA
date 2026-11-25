@@ -40,8 +40,10 @@ verifica "Renovar con 'AFL49' (sin cero, serie equivocada)" "$(api POST /api/ren
 R=$(api POST /api/renovaciones '{"folio_anterior":"AMBA-26NAL-AF1049","nombre_completo":"Ana Lopez Master","carta_compromiso_url":"https://drive.google.com/carta"}')
 verifica "Renovar otra vez con 'AF1049' → ya_renovado" "$R" 200 '"resultado":"ya_renovado"'
 verifica "  con 5 cursos → tipo A, vigencia diciembre" "$R" 200 '"vigencia":"2027-12-31"'
-verifica "Renovar sin carta → en revisión"  "$(api POST /api/renovaciones '{"folio_anterior":"AMBA-26NAL-AFI052","nombre_completo":"Sin Carta Prueba"}')" 200 '"falta_carta":true'
-SC=$(json "$(api GET /api/afiliaciones/pendientes)" "[p['afiliacion_id'] for p in d['pendientes'] if (p['alerta'] or '').startswith('Falta la carta')][0]")
+verifica "Renovar sin carta → se renueva (no la piden)" "$(api POST /api/renovaciones '{"folio_anterior":"AMBA-26NAL-AFI052","nombre_completo":"Sin Carta Prueba"}')" 200 '"resultado":"renovada"'
+R=$(api POST /api/afiliaciones '{"nombre_completo":"Nueva Sin Carta","curp":"NUSC800101HMCVNR04","correo":"n@x.mx","escuela":{"nombre":"Esc Nueva","estado":"MEXICO"}}')
+verifica "Afiliación nueva sin carta → avisa" "$R" 201 '"falta_carta":true'
+SC=$(json "$R" "d['afiliacion_id']")
 verifica "Aprobar sin carta → 409"         "$(api POST /api/afiliaciones/$SC/aprobar '{}')" 409 "falta_carta"
 verifica "Adjuntar carta después"          "$(api POST /api/afiliaciones/$SC/carta '{"carta_compromiso_url":"https://drive.google.com/c2"}')" 200 '"carta_guardada"'
 verifica "Ya con carta → se aprueba"       "$(api POST /api/afiliaciones/$SC/aprobar '{}')" 200 '"resultado":"aprobada"'
