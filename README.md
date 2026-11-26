@@ -17,7 +17,7 @@ app/
 config/          config.php con las credenciales (NO se sube a GitHub)
 sql/             Esquema y catálogos de la base de datos
 storage/logs/    Errores del sitio (no se sube a GitHub)
-herramientas/    Scripts auxiliares (generador de responsivas)
+herramientas/    Scripts auxiliares (responsivas, carta, tokens, Apps Script del Form 2027)
 ```
 
 ## Rutas actuales
@@ -44,6 +44,12 @@ y se guardan en las Propiedades del script, nunca en el código.
 | `POST /api/renovaciones` | `afiliaciones.renovar` | Renueva con el folio del año anterior, tolerando errores de captura (`AF1049`, `AFL49`, folio de la credencial o constancia). Sin alertas se aprueba en el acto con folio nuevo. |
 | `POST /api/documentos/{token}/pdf` | `documentos.registrar` | Guarda la liga del PDF ya generado |
 
+**Fecha de emisión:** con `afiliacion.emision_desde` (por ejemplo `"2027-01-01"`)
+las solicitudes se reciben antes, pero no se asignan folios ni se emiten
+documentos hasta esa fecha: las renovaciones responden `en_espera` y aprobar
+responde 409. Ese día se aprueban en el orden en que llegaron
+(`sql/06_campana_2027.sql`).
+
 **Carta de compromiso:** el Form manda `carta_compromiso_url` con la liga de la carta firmada.
 Sin ella una afiliación nueva no se aprueba y una renovación anual queda en
 revisión (`afiliacion.requiere_carta` y `renovacion.requiere_carta`). La
@@ -53,6 +59,13 @@ La carta en blanco se descarga de `/docs/carta-compromiso.pdf` y se genera con
 
 Los folios los asigna la base dentro de una transacción: dos solicitudes
 simultáneas nunca reciben el mismo número ni se salta ninguno.
+
+**Apps Script del Form 2027:** `herramientas/apps_script/Orquestador2027.gs` va
+en la Sheet de respuestas. Registra cada respuesta en la API al instante, avisa
+al profe que sus documentos llegan a partir de la fecha de emisión, y cada 10
+minutos emite (en orden de llegada) las renovaciones en espera y las afiliaciones
+que Kai autorizó: PDFs con el servicio de 2026, carpeta en Drive, correo y liga
+de WhatsApp. Las claves van en Propiedades del script.
 
 **Configuración** (tabla `configuracion`): `afiliacion.anio_actual` (cambiarlo a
 2027 al abrir la campaña), `afiliacion.tipos` y `afiliacion.vigencias`. Los 5
@@ -65,7 +78,7 @@ PRUEBA (nunca contra producción).
 
 1. **Base de datos:** crear una base nueva en el panel y cargar, en este orden,
    `sql/01_esquema.sql`, `sql/02_catalogos.sql`, `sql/03_config_afiliaciones.sql` `sql/04_carta_compromiso.sql` y
-   `sql/05_renovacion_anual_con_carta.sql`
+   `sql/05_renovacion_anual_con_carta.sql` y `sql/06_campana_2027.sql`
    (phpMyAdmin → Importar).
 2. **Configuración:** copiar `config/config.example.php` como `config/config.php`
    y llenar los datos de la base y del correo. Ese archivo se sube por SFTP, nunca a GitHub.
