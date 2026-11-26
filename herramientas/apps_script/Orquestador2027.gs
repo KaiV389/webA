@@ -566,7 +566,9 @@ function avisoNuevaAfiliacion27_(hoja, fila, v, d, alertas) {
 
 function avisarKai27_(asunto, texto, html) {
   try {
-    GmailApp.sendEmail(prop27_('NOTIF_EMAIL'), '[AMBA 2027] ' + asunto, texto || asunto, html ? { htmlBody: html } : {});
+    // Gmail rompe en el asunto los emojis "grandes" (🆕, 🚫, 📎…): se quitan ahí
+    const limpio = String(asunto).replace(/[\uD800-\uDFFF]/g, '').replace(/\s+/g, ' ').trim();
+    GmailApp.sendEmail(prop27_('NOTIF_EMAIL'), '[AMBA 2027] ' + limpio, texto || asunto, html ? { htmlBody: html } : {});
   } catch (e) { Logger.log('No se pudo avisar: ' + e.message); }
 }
 
