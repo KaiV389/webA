@@ -479,9 +479,8 @@ function correoEnRevision27_(correo, nombre) {
 
 function correoSimple27_(correo, asunto, texto) {
   if (!correo) return;
-  GmailApp.sendEmail(correo, asunto,
-    texto + '\n\nCualquier duda, responde a este correo.\n\nAsociación Mexiquense de Boxeo Amateur\nAMBA Nacional',
-    { name: 'AMBA Nacional' });
+  const cuerpo = texto + '\n\nCualquier duda, responde a este correo.\n\nAsociación Mexiquense de Boxeo Amateur\nAMBA Nacional';
+  GmailApp.sendEmail(correo, asunto, cuerpo, { name: 'AMBA Nacional', htmlBody: html27_(cuerpo) });
 }
 
 function correoEntrega27_(correo, d, tramite, vigencia, blobs, links, docs) {
@@ -520,7 +519,21 @@ function correoEntrega27_(correo, d, tramite, vigencia, blobs, links, docs) {
 
   cuerpo += 'Cualquier duda, responde a este correo.\n\nAsociación Mexiquense de Boxeo Amateur\nAMBA Nacional';
   GmailApp.sendEmail(correo, (esRenov ? 'Tu renovación AMBA Nacional ' : 'Tu afiliación AMBA Nacional ') + C27.ANIO + ' — ' + d.folio,
-    cuerpo, { attachments: blobs, name: 'AMBA Nacional' });
+    cuerpo, { attachments: blobs, name: 'AMBA Nacional', htmlBody: html27_(cuerpo) });
+}
+
+/**
+ * Versión HTML del texto del correo. En texto plano Gmail rompe los emojis
+ * (salen como ������); en HTML se ven bien y las ligas quedan clicables.
+ */
+function html27_(texto) {
+  const esc = String(texto).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  const conLigas = esc.replace(/https:\/\/[^\s<]+/g, u => {
+    const corta = u.length > 70 ? u.slice(0, 60) + '…' : u;
+    return '<a href="' + u.replace(/"/g, '&quot;') + '">' + corta + '</a>';
+  });
+  return '<div style="font-family:Arial,sans-serif;font-size:14px;line-height:1.5;color:#222">' +
+         conLigas.replace(/\n/g, '<br>') + '</div>';
 }
 
 function linkWA27_(tel, nombre, folio, vigencia, links, tramite) {
