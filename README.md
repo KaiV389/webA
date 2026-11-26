@@ -44,6 +44,12 @@ y se guardan en las Propiedades del script, nunca en el código.
 | `POST /api/renovaciones` | `afiliaciones.renovar` | Renueva con el folio del año anterior, tolerando errores de captura (`AF1049`, `AFL49`, folio de la credencial o constancia). Sin alertas se aprueba en el acto con folio nuevo. |
 | `POST /api/documentos/{token}/pdf` | `documentos.registrar` | Guarda la liga del PDF ya generado |
 
+**Fecha de emisión:** con `afiliacion.emision_desde` (por ejemplo `"2027-01-01"`)
+las solicitudes se reciben antes, pero no se asignan folios ni se emiten
+documentos hasta esa fecha: las renovaciones responden `en_espera` y aprobar
+responde 409. Ese día se aprueban en el orden en que llegaron
+(`sql/06_campana_2027.sql`).
+
 **Carta de compromiso:** el Form manda `carta_compromiso_url` con la liga de la carta firmada.
 Sin ella una afiliación nueva no se aprueba y una renovación anual queda en
 revisión (`afiliacion.requiere_carta` y `renovacion.requiere_carta`). La

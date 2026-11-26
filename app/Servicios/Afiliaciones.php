@@ -136,6 +136,10 @@ final class Afiliaciones
         if ($a['estatus'] !== 'pendiente') {
             throw new ErrorNegocio('La solicitud está en estatus "' . $a['estatus'] . '" y no se puede aprobar', 409);
         }
+        if (!$this->emisionAbierta()) {
+            throw new ErrorNegocio('Las afiliaciones ' . $a['anio'] . ' se emiten a partir del ' . $this->fechaEmision(), 409,
+                ['resultado' => 'en_espera', 'emision_desde' => $this->fechaEmision()]);
+        }
         if ($this->vetoActivo((int) $a['persona_id'], null)) {
             throw new ErrorNegocio('La persona tiene un veto activo; la aprobación debe hacerse a mano', 409);
         }
@@ -271,6 +275,12 @@ final class Afiliaciones
                         'nombre_no_coincide' => !$coincideNombre, 'falta_carta' => $faltaCarta,
                         'reconocimientos_por_revisar' => $nRecon];
             }
+            // Antes de la fecha de emisión la renovación queda formada en la fila: se
+            // aprueba (folio, documentos) en el orden de llegada cuando abra la emisión.
+            if (!$this->emisionAbierta()) {
+                return ['resultado' => 'en_espera', 'afiliacion_id' => $id, 'emision_desde' => $this->fechaEmision(),
+                        'reconocimientos_por_revisar' => $nRecon];
+            }
             // Se aprueba con los cursos ya validados en la base; si mandó reconocimientos
             // nuevos, se avisa para revisarlos y reexpedir la credencial si cambia el tipo.
             return ['resultado' => 'renovada', 'reconocimientos_por_revisar' => $nRecon]
@@ -356,6 +366,19 @@ final class Afiliaciones
             'tipo'           => $a['tipo_credencial'],
             'grado'          => $a['grado'],
             'cursos_validos' => (int) $a['cursos_validos'],
+            // Cuáles de los cursos requisito del año tiene válidos (para marcarlos en la credencial)
+            'cursos'         => array_map(fn($c) => [
+                'clave'  => $c['clave'],
+                'nombre' => $c['nombre'],
+                'valido' => (bool) $c['valido'],
+            ], Db::todos(
+                "SELECT c.clave, c.nombre,
+                        EXISTS(SELECT 1 FROM reconocimientos r
+                                WHERE r.persona_id = ? AND r.curso_id = c.id AND r.estatus = 'valido') AS valido
+                   FROM requisitos_anuales q JOIN cursos c ON c.id = q.curso_id
+                  WHERE q.anio = ? ORDER BY q.orden",
+                [$a['persona_id'], $a['anio']]
+            )),
             'vigencia'       => $a['vigencia'],
             'persona'        => [
                 'id' => (int) $a['persona_id'], 'nombre_completo' => $a['nombre_completo'],
@@ -553,6 +576,19 @@ final class Afiliaciones
      * de Google Sheets en México, día/mes/año ("03/01/2027 10:15:00"), que
      * strtotime leería al revés como mes/día.
      */
+    /** Fecha desde la que se emiten folios y documentos (configuracion: afiliacion.emision_desde). */
+    private function fechaEmision(): ?string
+    {
+        $f = Ajustes::get('afiliacion.emision_desde');
+        return is_string($f) && preg_match('/^\d{4}-\d{2}-\d{2}$/', $f) ? $f : null;
+    }
+
+    private function emisionAbierta(): bool
+    {
+        $f = $this->fechaEmision();
+        return $f === null || date('Y-m-d') >= $f;
+    }
+
     /** Liga https de la carta firmada, o null si no viene o no es válida. */
     private function urlCarta(array $d): ?string
     {

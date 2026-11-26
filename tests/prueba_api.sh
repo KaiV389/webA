@@ -43,6 +43,7 @@ verifica "Curso desconocido al aprobar → 422" "$(api POST /api/afiliaciones/$C
 R=$(api POST /api/afiliaciones/$CC/aprobar '{"cursos_validados":["Ciencias del deporte","REQ-METODOLOGIA","Pedagogía Integral en el Deporte","Urgencias Médicas en el Boxeo"]}')
 verifica "Aprobar con 4 cursos validados → tipo B" "$R" 200 '"tipo":"B"'
 verifica "  cursos_validos = 4"            "$R" 200 '"cursos_validos":4'
+verifica "  dice cuáles cursos son válidos" "$R" 200 '{"clave":"REQ-MATEMATICAS","nombre":"Matemáticas y Unidades de Medición para el Deporte","valido":false}'
 verifica "Renovar con reconocimientos nuevos → avisa" "$(api POST /api/renovaciones '{"folio_anterior":"AMBA-26NAL-AFI053","nombre_completo":"Renueva Con Curso","carta_compromiso_url":"https://drive.google.com/c5","reconocimientos_nuevos":["https://drive.google.com/n1"]}')" 200 '"reconocimientos_por_revisar":1'
 
 # Renovaciones (la base de prueba trae afiliados 2026 sembrados por el script de pruebas)
