@@ -44,8 +44,15 @@ final class Http
             return $_SERVER[$clave];
         }
         // Algunos hostings con PHP como CGI dejan Authorization aquí
-        if (strcasecmp($nombre, 'Authorization') === 0) {
-            return $_SERVER['REDIRECT_HTTP_AUTHORIZATION'] ?? null;
+        if (strcasecmp($nombre, 'Authorization') === 0 && isset($_SERVER['REDIRECT_HTTP_AUTHORIZATION'])) {
+            return $_SERVER['REDIRECT_HTTP_AUTHORIZATION'];
+        }
+        if (function_exists('getallheaders')) {
+            foreach (getallheaders() as $k => $v) {
+                if (strcasecmp($k, $nombre) === 0) {
+                    return $v;
+                }
+            }
         }
         return null;
     }
