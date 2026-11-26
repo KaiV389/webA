@@ -5,6 +5,7 @@
 declare(strict_types=1);
 
 use App\Controladores\Api\AfiliacionesController;
+use App\Controladores\Api\MigracionController;
 use App\Controladores\SaludController;
 use App\Controladores\VerificarController;
 use App\Core\Http;
@@ -26,3 +27,7 @@ $r->post('/api/afiliaciones/{id}/aprobar',  [AfiliacionesController::class, 'apr
 $r->post('/api/afiliaciones/{id}/carta',    [AfiliacionesController::class, 'adjuntarCarta']);
 $r->post('/api/renovaciones',               [AfiliacionesController::class, 'renovar']);
 $r->post('/api/documentos/{token}/pdf',     [AfiliacionesController::class, 'guardarPdf']);
+
+// Migración de años anteriores (Sheet 2026 → base nueva)
+$r->post('/api/migracion/afiliaciones',     [MigracionController::class, 'afiliaciones']);
+$r->post('/api/migracion/vetos',            [MigracionController::class, 'vetos']);

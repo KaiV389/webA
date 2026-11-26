@@ -67,6 +67,11 @@ minutos emite (en orden de llegada) las renovaciones en espera y las afiliacione
 que Kai autorizó: PDFs con el servicio de 2026, carpeta en Drive, correo y liga
 de WhatsApp. Las claves van en Propiedades del script.
 
+**Migración 2026:** `herramientas/apps_script/Migracion2026.gs` va en la Sheet
+de 2026 y manda la pestaña A2026 (folio, persona, escuela, cursos validados) y
+Vetados a `POST /api/migracion/afiliaciones` y `/api/migracion/vetos`. Es
+idempotente; no genera documentos.
+
 **Configuración** (tabla `configuracion`): `afiliacion.anio_actual` (cambiarlo a
 2027 al abrir la campaña), `afiliacion.tipos` y `afiliacion.vigencias`. Los 5
 cursos de cada año van en `requisitos_anuales`.
