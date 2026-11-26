@@ -213,6 +213,7 @@ function registrarAfiliacion27_(hoja, fila, v) {
     },
     reconocimientos: C27.CURSOS.map(c => ({ curso: c.clave, archivo_url: v(c.pregunta) })).filter(r => r.archivo_url),
     respuesta_form: { hoja: hoja.getName(), fila: fila },
+    anio_campana: C27.ANIO,   // candado: la API rechaza si la base está en otro año
   };
 
   const r = api27_('post', '/api/afiliaciones', payload);
@@ -257,6 +258,7 @@ function registrarRenovacion27_(hoja, fila, v) {
     carta_compromiso_url: primeraLiga27_(v(C27.Q.carta)),
     reconocimientos_nuevos: ligas27_(v(C27.Q.reconNuevos)),
     respuesta_form: { hoja: hoja.getName(), fila: fila },
+    anio_campana: C27.ANIO,
   };
 
   const r = api27_('post', '/api/renovaciones', payload);
@@ -350,11 +352,17 @@ function emitirPendientes() {
       const validados = C27.CURSOS.filter(c => datos[i][col(C27.PREFIJO_CURSO + c.corto)] === true).map(c => c.clave);
       // En renovación sin ✔ marcados se usan los cursos que ya están en la base
       const body = (esRenov && validados.length === 0) ? {} : { cursos_validados: validados };
+      body.anio_campana = C27.ANIO;
 
       const r = api27_('post', '/api/afiliaciones/' + id + '/aprobar', body);
       if (r.code === 409 && r.json.resultado === 'en_espera') {
         resumen.push('Todavía no abre la emisión (' + r.json.emision_desde + ').');
         break;                                 // nada más que hacer hasta esa fecha
+      }
+      if (r.code === 409 && r.json.resultado === 'anio_no_coincide') {
+        avisarKai27_('Emisión detenida: el año de la base no es ' + C27.ANIO, r.json.error);
+        resumen.push('⛔ ' + r.json.error);
+        break;
       }
       if (r.code !== 200) {
         escribir27_(hoja, fila, { notas: '⚠️ ' + (r.json.error || ('HTTP ' + r.code)) });
@@ -386,6 +394,9 @@ function emitirPendientes() {
 // ══════════════════════════════════════════════════════════════════
 
 function entregar27_(hoja, fila, d, tramite, telefono, correo) {
+  if (Number(d.anio) !== C27.ANIO) {
+    throw new Error('La API devolvió una afiliación ' + d.anio + ' (folio ' + d.folio + '), no ' + C27.ANIO + '. No se envió nada.');
+  }
   const docs = {};
   (d.documentos || []).forEach(x => { docs[x.tipo] = x; });
   const cursos = {};
@@ -532,8 +543,13 @@ function html27_(texto) {
     const corta = u.length > 70 ? u.slice(0, 60) + '…' : u;
     return '<a href="' + u.replace(/"/g, '&quot;') + '">' + corta + '</a>';
   });
-  return '<div style="font-family:Arial,sans-serif;font-size:14px;line-height:1.5;color:#222">' +
-         conLigas.replace(/\n/g, '<br>') + '</div>';
+  return emojisHtml27_('<div style="font-family:Arial,sans-serif;font-size:14px;line-height:1.5;color:#222">' +
+         conLigas.replace(/\n/g, '<br>') + '</div>');
+}
+
+/** GmailApp rompe los emojis "grandes" (🥊, 📲…); como entidad HTML (&#x1F94A;) llegan bien. */
+function emojisHtml27_(html) {
+  return String(html).replace(/[\uD800-\uDBFF][\uDC00-\uDFFF]/g, par => '&#x' + par.codePointAt(0).toString(16).toUpperCase() + ';');
 }
 
 function linkWA27_(tel, nombre, folio, vigencia, links, tramite) {
@@ -568,7 +584,7 @@ function avisarKai27_(asunto, texto, html) {
   try {
     // Gmail rompe en el asunto los emojis "grandes" (🆕, 🚫, 📎…): se quitan ahí
     const limpio = String(asunto).replace(/[\uD800-\uDFFF]/g, '').replace(/\s+/g, ' ').trim();
-    GmailApp.sendEmail(prop27_('NOTIF_EMAIL'), '[AMBA 2027] ' + limpio, texto || asunto, html ? { htmlBody: html } : {});
+    GmailApp.sendEmail(prop27_('NOTIF_EMAIL'), '[AMBA 2027] ' + limpio, texto || asunto, html ? { htmlBody: emojisHtml27_(html) } : {});
   } catch (e) { Logger.log('No se pudo avisar: ' + e.message); }
 }
 
@@ -593,7 +609,7 @@ function reprocesarFila() {
 
   // Si ya tiene folio pero falló la entrega, solo se vuelve a entregar (el folio no cambia)
   if (id && (est === E27.ERROR || est === E27.ENTREGADO) && String(datos[h.indexOf(C27.COL.folio)] || '').trim()) {
-    const a = api27_('post', '/api/afiliaciones/' + id + '/aprobar', {});
+    const a = api27_('post', '/api/afiliaciones/' + id + '/aprobar', { anio_campana: C27.ANIO });
     exigirOk27_(a);
     const esRenov = norm27_(v(C27.Q.tramite)).indexOf('renov') === 0;
     entregar27_(hoja, fila, a.json, esRenov ? 'renovacion' : 'afiliacion',
