@@ -104,6 +104,7 @@ function onOpen() {
   SpreadsheetApp.getUi().createMenu('🥊 AMBA 2027')
     .addItem('Emitir ahora (autorizadas y en espera)', 'emitirPendientes')
     .addItem('Reprocesar una fila…', 'reprocesarFila')
+    .addItem('Reintentar todos los "FOLIO NO ENCONTRADO"', 'reintentarNoEncontrados')
     .addSeparator()
     .addItem('Verificar configuración', 'verificarConfig27')
     .addItem('Activar (columnas y disparadores)', 'activar27')
@@ -619,6 +620,30 @@ function reprocesarFila() {
     procesarRespuesta27_(hoja, fila, v);
   }
   ui.alert('✅ Fila ' + fila + ' reprocesada. Revisa la columna Estatus.');
+}
+
+
+/** Vuelve a mandar a la API todas las renovaciones que quedaron en FOLIO NO ENCONTRADO. */
+function reintentarNoEncontrados() {
+  const hoja = hojaRespuestas27_();
+  const datos = hoja.getDataRange().getValues();
+  const h = datos[0].map(x => String(x).trim());
+  const iEst = h.indexOf(C27.COL.estatus);
+  let n = 0;
+  const quedan = [];
+  for (let i = 1; i < datos.length; i++) {
+    if (String(datos[i][iEst] || '').trim() !== E27.NO_ENCONTRADO) continue;
+    n++;
+    try {
+      procesarRespuesta27_(hoja, i + 1, valoresDeFila27_(h, datos[i]));
+    } catch (e) { Logger.log('Fila ' + (i + 1) + ': ' + e.message); }
+    if (String(hoja.getRange(i + 1, iEst + 1).getValue()).trim() === E27.NO_ENCONTRADO) quedan.push(i + 1);
+  }
+  const msg = 'Reintentadas: ' + n + '\n' + (quedan.length
+    ? 'Siguen sin encontrarse (revisa el folio que capturaron): filas ' + quedan.join(', ')
+    : 'Todas encontraron su folio ✅');
+  Logger.log(msg);
+  try { SpreadsheetApp.getUi().alert(msg); } catch (e) {}
 }
 
 
