@@ -88,6 +88,7 @@ final class Afiliaciones
                 ]
             );
             $id = (int) $pdo->lastInsertId();
+            $nRecon = $this->guardarReconocimientos($personaId, $d['reconocimientos'] ?? []);
             Bitacora::registrar('registrar', 'afiliacion', $id, null, ['persona_id' => $personaId, 'veto' => $veto]);
 
             return [
@@ -97,6 +98,7 @@ final class Afiliaciones
                 'alerta_veto'        => $veto,
                 'afiliado_anterior'  => (bool) $anterior,   // ya estuvo afiliado otro año
                 'falta_carta'        => $this->urlCarta($d) === null,
+                'reconocimientos'    => $nRecon,             // archivos de cursos recibidos, por validar
             ];
         });
     }
@@ -106,17 +108,21 @@ final class Afiliaciones
     // ------------------------------------------------------------------
 
     /**
-     * @param int|null $cursosValidos  si viene, manda sobre lo que hay en la base
-     * @param int|null $aprobadaPor    persona que autorizó (para la constancia de autorizaciones)
+     * @param int|null   $cursosValidos    número de cursos; si viene, manda sobre lo que hay en la base
+     * @param int|null   $aprobadaPor      persona que autorizó (para la constancia de autorizaciones)
+     * @param array|null $cursosValidados  cursos que Kai validó al revisar (clave o nombre): quedan
+     *                                     registrados como reconocimientos válidos y cuentan para el tipo
      */
-    public function aprobar(int $afiliacionId, ?int $cursosValidos = null, ?int $aprobadaPor = null): array
+    public function aprobar(int $afiliacionId, ?int $cursosValidos = null, ?int $aprobadaPor = null,
+                            ?array $cursosValidados = null): array
     {
-        return Db::transaccion(function (PDO $pdo) use ($afiliacionId, $cursosValidos, $aprobadaPor) {
-            return $this->aprobarEnTransaccion($pdo, $afiliacionId, $cursosValidos, $aprobadaPor);
+        return Db::transaccion(function (PDO $pdo) use ($afiliacionId, $cursosValidos, $aprobadaPor, $cursosValidados) {
+            return $this->aprobarEnTransaccion($pdo, $afiliacionId, $cursosValidos, $aprobadaPor, $cursosValidados);
         });
     }
 
-    private function aprobarEnTransaccion(PDO $pdo, int $afiliacionId, ?int $cursosValidos, ?int $aprobadaPor): array
+    private function aprobarEnTransaccion(PDO $pdo, int $afiliacionId, ?int $cursosValidos, ?int $aprobadaPor,
+                                          ?array $cursosValidados = null): array
     {
         $st = $pdo->prepare('SELECT * FROM afiliaciones WHERE id = ? FOR UPDATE');
         $st->execute([$afiliacionId]);
@@ -142,6 +148,9 @@ final class Afiliaciones
         }
 
         $anio = (int) $a['anio'];
+        if ($cursosValidados !== null) {
+            $this->validarCursos((int) $a['persona_id'], $cursosValidados, $aprobadaPor);
+        }
         $cursos = $cursosValidos ?? $this->cursosValidos((int) $a['persona_id'], $anio);
         [$tipo, $grado] = $this->tipoPorCursos($cursos);
         $vigencia = $this->vigencia($anio, $tipo);
@@ -250,14 +259,22 @@ final class Afiliaciones
                  json_encode($d['respuesta_form'] ?? null, JSON_UNESCAPED_UNICODE), $carta]
             );
             $id = (int) $pdo->lastInsertId();
+            $nRecon = $this->guardarReconocimientos($personaId, array_map(
+                fn($url) => ['curso' => null, 'archivo_url' => $url],
+                (array) ($d['reconocimientos_nuevos'] ?? [])
+            ));
             Bitacora::registrar('renovar', 'afiliacion', $id, null, ['anterior' => (int) $anterior['id'], 'alerta' => $alerta]);
 
             // Sin alertas, la renovación se aprueba en el acto
             if ($alerta) {
                 return ['resultado' => 'en_revision', 'afiliacion_id' => $id, 'alerta_veto' => $veto,
-                        'nombre_no_coincide' => !$coincideNombre, 'falta_carta' => $faltaCarta];
+                        'nombre_no_coincide' => !$coincideNombre, 'falta_carta' => $faltaCarta,
+                        'reconocimientos_por_revisar' => $nRecon];
             }
-            return ['resultado' => 'renovada'] + $this->aprobarEnTransaccion($pdo, $id, null, null);
+            // Se aprueba con los cursos ya validados en la base; si mandó reconocimientos
+            // nuevos, se avisa para revisarlos y reexpedir la credencial si cambia el tipo.
+            return ['resultado' => 'renovada', 'reconocimientos_por_revisar' => $nRecon]
+                 + $this->aprobarEnTransaccion($pdo, $id, null, null);
         });
     }
 
@@ -401,6 +418,85 @@ final class Afiliaciones
             [trim($nombre), $e['logo_url'] ?? null, $e['domicilio'] ?? null, $e['municipio'] ?? null, $estadoId]
         );
         return (int) Db::pdo()->lastInsertId();
+    }
+
+    /**
+     * Guarda como PENDIENTES los reconocimientos que llegan del Form.
+     * Cada elemento: ['curso' => clave o nombre (o null si no se sabe), 'archivo_url' => liga o ligas
+     * separadas por coma, como las entrega Google Forms]. No duplica archivos ya registrados.
+     * Devuelve cuántos archivos nuevos se guardaron.
+     */
+    private function guardarReconocimientos(int $personaId, array $lista): int
+    {
+        $n = 0;
+        foreach ($lista as $r) {
+            $cursoId = $this->cursoId($r['curso'] ?? null);
+            $nombre = $cursoId
+                ? Db::uno('SELECT nombre FROM cursos WHERE id = ?', [$cursoId])['nombre']
+                : 'Reconocimiento por clasificar';
+            foreach (preg_split('/\s*,\s*/', trim((string) ($r['archivo_url'] ?? ''))) as $url) {
+                if (!preg_match('#^https://\S+$#', $url)) {
+                    continue;
+                }
+                if (Db::uno('SELECT 1 FROM reconocimientos WHERE persona_id = ? AND archivo_url = ?', [$personaId, $url])) {
+                    continue;
+                }
+                Db::ejecutar(
+                    "INSERT INTO reconocimientos (persona_id, curso_id, nombre_curso, archivo_url, estatus)
+                     VALUES (?, ?, ?, ?, 'pendiente')",
+                    [$personaId, $cursoId, $nombre, $url]
+                );
+                $n++;
+            }
+        }
+        return $n;
+    }
+
+    /**
+     * Marca como válidos los cursos que Kai validó al aprobar. Si el curso tiene un
+     * reconocimiento pendiente, ese se valida; si no (lo validó por otro medio), se
+     * crea uno válido sin archivo. Así el historial de cursos queda en la base.
+     */
+    private function validarCursos(int $personaId, array $cursos, ?int $validadoPor): void
+    {
+        foreach ($cursos as $curso) {
+            $cursoId = $this->cursoId($curso);
+            if (!$cursoId) {
+                throw new ErrorNegocio('Curso no reconocido: ' . $curso, 422);
+            }
+            if (Db::uno("SELECT 1 FROM reconocimientos WHERE persona_id = ? AND curso_id = ? AND estatus = 'valido'",
+                        [$personaId, $cursoId])) {
+                continue;
+            }
+            $n = Db::ejecutar(
+                "UPDATE reconocimientos SET estatus = 'valido', validado_por = ?, validado_at = NOW()
+                  WHERE persona_id = ? AND curso_id = ? AND estatus = 'pendiente'",
+                [$validadoPor, $personaId, $cursoId]
+            );
+            if ($n === 0) {
+                Db::ejecutar(
+                    "INSERT INTO reconocimientos (persona_id, curso_id, nombre_curso, estatus, validado_por, validado_at, notas)
+                     SELECT ?, id, nombre, 'valido', ?, NOW(), 'Validado al aprobar la afiliación' FROM cursos WHERE id = ?",
+                    [$personaId, $validadoPor, $cursoId]
+                );
+            }
+        }
+    }
+
+    /** Id del curso por su clave (REQ-CIENCIAS) o por su nombre ("Ciencias del deporte"). */
+    private function cursoId(?string $curso): ?int
+    {
+        $curso = trim((string) $curso);
+        if ($curso === '') {
+            return null;
+        }
+        $clave = Catalogos::normalizar($curso);
+        foreach (Db::todos('SELECT id, clave, nombre FROM cursos') as $c) {
+            if (Catalogos::normalizar($c['clave']) === $clave || Catalogos::normalizar($c['nombre']) === $clave) {
+                return (int) $c['id'];
+            }
+        }
+        return null;
     }
 
     private function vetoActivo(int $personaId, ?string $curp): bool

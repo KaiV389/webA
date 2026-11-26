@@ -35,6 +35,16 @@ verifica "Verificar credencial nueva"      "$(curl -s "$BASE/verificar/$TOK" -w 
 verifica "Guardar liga del PDF"            "$(api POST /api/documentos/$TOK/pdf '{"pdf_url":"https://drive.google.com/x"}')" 200 '"ok":true'
 verifica "Liga no https → 422"             "$(api POST /api/documentos/$TOK/pdf '{"pdf_url":"http://x"}')" 422 "https"
 
+# Reconocimientos de cursos: llegan pendientes en el alta y se validan al aprobar
+R=$(api POST /api/afiliaciones '{"nombre_completo":"Con Cursos","curp":"COCU800101HMCNRS05","correo":"c@x.mx","escuela":{"nombre":"Esc C","estado":"MEXICO"},"carta_compromiso_url":"https://drive.google.com/cc","reconocimientos":[{"curso":"Ciencias del deporte","archivo_url":"https://drive.google.com/r1, https://drive.google.com/r2"},{"curso":"Metodología del Boxeo","archivo_url":"https://drive.google.com/r3"},{"curso":"Pedagogía Integral en el Deporte","archivo_url":""}]}')
+verifica "Alta con reconocimientos → 3 archivos" "$R" 201 '"reconocimientos":3'
+CC=$(json "$R" "d['afiliacion_id']")
+verifica "Curso desconocido al aprobar → 422" "$(api POST /api/afiliaciones/$CC/aprobar '{"cursos_validados":["Curso Inventado"]}')" 422 "Curso no reconocido"
+R=$(api POST /api/afiliaciones/$CC/aprobar '{"cursos_validados":["Ciencias del deporte","REQ-METODOLOGIA","Pedagogía Integral en el Deporte","Urgencias Médicas en el Boxeo"]}')
+verifica "Aprobar con 4 cursos validados → tipo B" "$R" 200 '"tipo":"B"'
+verifica "  cursos_validos = 4"            "$R" 200 '"cursos_validos":4'
+verifica "Renovar con reconocimientos nuevos → avisa" "$(api POST /api/renovaciones '{"folio_anterior":"AMBA-26NAL-AFI053","nombre_completo":"Renueva Con Curso","carta_compromiso_url":"https://drive.google.com/c5","reconocimientos_nuevos":["https://drive.google.com/n1"]}')" 200 '"reconocimientos_por_revisar":1'
+
 # Renovaciones (la base de prueba trae afiliados 2026 sembrados por el script de pruebas)
 verifica "Renovar con 'AFL49' (sin cero, serie equivocada)" "$(api POST /api/renovaciones '{"folio_anterior":"afl49 ","nombre_completo":"Ana López Master","carta_compromiso_url":"https://drive.google.com/carta"}')" 200 '"resultado":"renovada"'
 R=$(api POST /api/renovaciones '{"folio_anterior":"AMBA-26NAL-AF1049","nombre_completo":"Ana Lopez Master","carta_compromiso_url":"https://drive.google.com/carta"}')

@@ -47,7 +47,8 @@ final class AfiliacionesController
             throw new ErrorNegocio('cursos_validos fuera de rango', 422);
         }
         $por = isset($d['aprobada_por_persona_id']) ? (int) $d['aprobada_por_persona_id'] : null;
-        Http::json(['ok' => true] + (new Afiliaciones())->aprobar((int) $id, $cursos, $por));
+        $validados = isset($d['cursos_validados']) ? array_values(array_filter((array) $d['cursos_validados'], 'is_string')) : null;
+        Http::json(['ok' => true] + (new Afiliaciones())->aprobar((int) $id, $cursos, $por, $validados));
     }
 
     public function adjuntarCarta(string $id): never
