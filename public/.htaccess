@@ -8,6 +8,11 @@
 RewriteEngine On
 RewriteBase /
 
+# IONOS (PHP como CGI) no le pasa a PHP el encabezado Authorization:
+# se copia a una variable para que la API lo reciba.
+RewriteCond %{HTTP:Authorization} .
+RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
+
 # Nunca servir archivos ocultos (.env, .git, etc.)
 RewriteRule (^|/)\. - [F]
 

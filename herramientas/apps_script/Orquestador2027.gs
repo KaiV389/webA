@@ -598,7 +598,8 @@ function reprocesarFila() {
 function api27_(metodo, ruta, cuerpo) {
   const opciones = {
     method: metodo, muteHttpExceptions: true,
-    headers: { Authorization: 'Bearer ' + prop27_('API_AMBA_TOKEN') },
+    // Se manda en los dos encabezados: IONOS a veces no le pasa Authorization a PHP
+    headers: { Authorization: 'Bearer ' + prop27_('API_AMBA_TOKEN'), 'X-AMBA-Token': prop27_('API_AMBA_TOKEN') },
   };
   if (cuerpo !== undefined) { opciones.contentType = 'application/json'; opciones.payload = JSON.stringify(cuerpo); }
   // Reintento ante fallas de red o del servidor (5xx); la API aguanta reintentos sin duplicar
