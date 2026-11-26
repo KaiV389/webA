@@ -48,7 +48,8 @@ final class AfiliacionesController
         }
         $por = isset($d['aprobada_por_persona_id']) ? (int) $d['aprobada_por_persona_id'] : null;
         $validados = isset($d['cursos_validados']) ? array_values(array_filter((array) $d['cursos_validados'], 'is_string')) : null;
-        Http::json(['ok' => true] + (new Afiliaciones())->aprobar((int) $id, $cursos, $por, $validados));
+        $campana = isset($d['anio_campana']) ? (int) $d['anio_campana'] : null;
+        Http::json(['ok' => true] + (new Afiliaciones())->conAnioCampana($campana)->aprobar((int) $id, $cursos, $por, $validados));
     }
 
     public function adjuntarCarta(string $id): never

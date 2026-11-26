@@ -47,6 +47,7 @@ final class Afiliaciones
         }
 
         $anio = Ajustes::anioActual();
+        $this->exigirCampana($d, $anio);
         $fechaRegistro = $this->fecha($d['marca_temporal'] ?? null);
         $estadoId = Catalogos::estadoId($d['escuela']['estado'] ?? null, $curp);
 
@@ -136,6 +137,7 @@ final class Afiliaciones
         if ($a['estatus'] !== 'pendiente') {
             throw new ErrorNegocio('La solicitud está en estatus "' . $a['estatus'] . '" y no se puede aprobar', 409);
         }
+        $this->exigirCampana(['anio_campana' => $this->anioCampana], (int) $a['anio']);
         if (!$this->emisionAbierta()) {
             throw new ErrorNegocio('Las afiliaciones ' . $a['anio'] . ' se emiten a partir del ' . $this->fechaEmision(), 409,
                 ['resultado' => 'en_espera', 'emision_desde' => $this->fechaEmision()]);
@@ -204,6 +206,7 @@ final class Afiliaciones
 
     public function renovar(array $d): array
     {
+        $this->exigirCampana($d, Ajustes::anioActual());
         $interpretado = Folios::interpretar($d['folio_anterior'] ?? '');
         if (!$interpretado) {
             throw new ErrorNegocio('No se reconoce el folio capturado', 404, ['resultado' => 'folio_no_reconocido']);
@@ -577,6 +580,33 @@ final class Afiliaciones
      * strtotime leería al revés como mes/día.
      */
     /** Fecha desde la que se emiten folios y documentos (configuracion: afiliacion.emision_desde). */
+    /** Año de campaña que manda el cliente al aprobar (candado; ver exigirCampana). */
+    private ?int $anioCampana = null;
+
+    public function conAnioCampana(?int $anio): self
+    {
+        $this->anioCampana = $anio;
+        return $this;
+    }
+
+    /**
+     * Candado: si el cliente (Apps Script) dice de qué campaña es
+     * ('anio_campana': 2027) y la base está en otro año, no se registra ni
+     * se emite nada. Evita emitir folios del año equivocado si falta la
+     * configuración de la campaña.
+     */
+    private function exigirCampana(array $d, int $anio): void
+    {
+        if (!isset($d['anio_campana']) || $d['anio_campana'] === null || $d['anio_campana'] === '') {
+            return;
+        }
+        if ((int) $d['anio_campana'] !== $anio) {
+            throw new ErrorNegocio('El año de la campaña (' . (int) $d['anio_campana'] . ') no coincide con el de la base ('
+                . $anio . '). Revisa afiliacion.anio_actual en la configuración.', 409,
+                ['resultado' => 'anio_no_coincide', 'anio_base' => $anio]);
+        }
+    }
+
     private function fechaEmision(): ?string
     {
         $f = Ajustes::get('afiliacion.emision_desde');
