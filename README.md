@@ -37,9 +37,9 @@ y se guardan en las Propiedades del script, nunca en el código.
 
 | Método y ruta | Permiso | Qué hace |
 |---|---|---|
-| `POST /api/afiliaciones` | `afiliaciones.registrar` | Registra la solicitud del Form de afiliación; queda pendiente (con alerta si hay veto). Un doble envío devuelve el registro existente. |
+| `POST /api/afiliaciones` | `afiliaciones.registrar` | Registra la solicitud del Form de afiliación; queda pendiente (con alerta si hay veto). Guarda como pendientes los reconocimientos de cursos (`reconocimientos`: curso + liga). Un doble envío devuelve el registro existente. |
 | `GET /api/afiliaciones/pendientes` | `afiliaciones.aprobar` | Bandeja de solicitudes por aprobar |
-| `POST /api/afiliaciones/{id}/aprobar` | `afiliaciones.aprobar` | Asigna el folio del año, tipo, grado y vigencia, y crea los 3 documentos (AFL, CON, CRE) con su liga de verificación para el QR. Repetirlo devuelve lo mismo. |
+| `POST /api/afiliaciones/{id}/aprobar` | `afiliaciones.aprobar` | Con `cursos_validados` (los que Kai validó) los registra como válidos. Asigna el folio del año, tipo, grado y vigencia, y crea los 3 documentos (AFL, CON, CRE) con su liga de verificación para el QR. Repetirlo devuelve lo mismo. |
 | `POST /api/afiliaciones/{id}/carta` | `afiliaciones.aprobar` | Agrega la carta de compromiso a una solicitud que llegó sin ella |
 | `POST /api/renovaciones` | `afiliaciones.renovar` | Renueva con el folio del año anterior, tolerando errores de captura (`AF1049`, `AFL49`, folio de la credencial o constancia). Sin alertas se aprueba en el acto con folio nuevo. |
 | `POST /api/documentos/{token}/pdf` | `documentos.registrar` | Guarda la liga del PDF ya generado |
